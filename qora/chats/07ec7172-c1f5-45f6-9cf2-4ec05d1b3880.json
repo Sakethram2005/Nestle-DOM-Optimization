@@ -1,0 +1,27 @@
+{
+    "id": "07ec7172-c1f5-45f6-9cf2-4ec05d1b3880",
+    "title": "hii ",
+    "created": "2026-07-21 19:11:18.850636",
+    "messages": [
+        {
+            "role": "user",
+            "content": "hii ",
+            "time": "2026-07-21 19:11:37.550736"
+        },
+        {
+            "role": "assistant",
+            "content": "\nSorry, I don't know that.\n\nTry asking:\n\n\u2022 What is DOM?\n\u2022 Explain OR-Tools\n\u2022 What is QAOA?\n\u2022 Who are you?\n\u2022 Explain Fill Rate\n",
+            "time": "2026-07-21 19:11:37.553408"
+        },
+        {
+            "role": "user",
+            "content": "what is dom",
+            "time": "2026-07-21 19:11:37.556226"
+        },
+        {
+            "role": "assistant",
+            "content": "\nDistributed Order Management (DOM) is the process of selecting the best warehouse to fulfill customer orders.\n\nThe optimizer considers inventory availability, warehouse capacity, shipping cost, penalties, revenue and business constraints before recommending the best warehouse.\n",
+            "time": "2026-07-21 19:11:37.559115"
+        }
+    ]
+}

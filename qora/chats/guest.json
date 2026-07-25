@@ -1,0 +1,18 @@
+[
+    {
+        "role": "user",
+        "content": "hii"
+    },
+    {
+        "role": "assistant",
+        "content": "\nSorry, I don't know that.\n\nTry asking:\n\n• What is DOM?\n• Explain OR-Tools\n• What is QAOA?\n• Who are you?\n• Explain Fill Rate\n"
+    },
+    {
+        "role": "user",
+        "content": "what is dom"
+    },
+    {
+        "role": "assistant",
+        "content": "\nDistributed Order Management (DOM) is the process of selecting the best warehouse to fulfill customer orders.\n\nThe optimizer considers inventory availability, warehouse capacity, shipping cost, penalties, revenue and business constraints before recommending the best warehouse.\n"
+    }
+]

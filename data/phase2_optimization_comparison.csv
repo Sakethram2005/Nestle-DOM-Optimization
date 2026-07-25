@@ -1,0 +1,5 @@
+Method,Selected Orders,Fill Rate (%),Revenue,Shipping Cost
+Default Assignment,25193,100.0,88491861,62172792.40845069
+Greedy Assignment,24842,98.61,87710667,61332274.52004333
+OR-Tools Optimization,1369,5.43,27275767,3043034.4539544964
+QAOA (Placeholder),Future Work,Future Work,Future Work,Future Work
