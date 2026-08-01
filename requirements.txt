@@ -117,6 +117,7 @@ PyYAML==6.0.3
 pyzmq==27.1.0
 qiskit==2.4.1
 qiskit-aer==0.17.2
+qiskit-algorithms==0.4.0
 qiskit-ibm-runtime==0.48.0
 qiskit-optimization==0.7.0
 referencing==0.37.0

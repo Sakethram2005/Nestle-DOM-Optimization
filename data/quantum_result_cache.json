@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-08-01 10:46:45 UTC",
+  "plant": 5385,
+  "material_number": 12386067,
+  "capacity": 8.0,
+  "orders": [
+    {
+      "Group_Flag": 5485358557,
+      "OrderedQty_converted": 3,
+      "Order_SKU_Revenue": 142,
+      "Available_inventory": 8.0
+    },
+    {
+      "Group_Flag": 5485495559,
+      "OrderedQty_converted": 3,
+      "Order_SKU_Revenue": 142,
+      "Available_inventory": 8.0
+    },
+    {
+      "Group_Flag": 5485567248,
+      "OrderedQty_converted": 2,
+      "Order_SKU_Revenue": 94,
+      "Available_inventory": 8.0
+    },
+    {
+      "Group_Flag": 5485529066,
+      "OrderedQty_converted": 2,
+      "Order_SKU_Revenue": 94,
+      "Available_inventory": 8.0
+    }
+  ],
+  "exact": {
+    "method": "Exact classical (brute force)",
+    "objective": 378.0,
+    "assignment": {
+      "order_5485358557": 1,
+      "order_5485495559": 1,
+      "order_5485567248": 0,
+      "order_5485529066": 1
+    },
+    "feasible": true,
+    "runtime_sec": 0.0005757808685302734
+  },
+  "greedy": {
+    "method": "Greedy classical heuristic",
+    "objective": 378.0,
+    "assignment": {
+      "order_5485358557": 1,
+      "order_5485495559": 1,
+      "order_5485567248": 0,
+      "order_5485529066": 1
+    },
+    "feasible": true,
+    "runtime_sec": 1.811981201171875e-05
+  },
+  "quantum": {
+    "method": "QAOA (Qiskit simulator, reps=1)",
+    "objective": 378.0,
+    "assignment": {
+      "order_5485358557": 1,
+      "order_5485495559": 1,
+      "order_5485567248": 0,
+      "order_5485529066": 1
+    },
+    "feasible": true,
+    "runtime_sec": 79.44717741012573
+  }
+}

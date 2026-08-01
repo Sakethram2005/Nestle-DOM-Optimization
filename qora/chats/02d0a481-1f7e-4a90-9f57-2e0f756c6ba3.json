@@ -1,0 +1,17 @@
+{
+    "id": "02d0a481-1f7e-4a90-9f57-2e0f756c6ba3",
+    "title": "New Chat",
+    "created": "2026-07-31 17:27:23.897973",
+    "messages": [
+        {
+            "role": "user",
+            "content": "What is the total penalty cost?",
+            "time": "2026-07-31 17:27:23.944545"
+        },
+        {
+            "role": "assistant",
+            "content": "124943.97",
+            "time": "2026-07-31 17:27:23.974784"
+        }
+    ]
+}

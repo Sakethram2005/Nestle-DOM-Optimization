@@ -1,0 +1,27 @@
+{
+    "id": "e0eae7f6-e152-4916-a220-a890d93a88b9",
+    "title": "New Chat",
+    "created": "2026-07-30 10:34:39.192980",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Which plant has the highest utilization?",
+            "time": "2026-07-30 10:36:14.466182"
+        },
+        {
+            "role": "assistant",
+            "content": "Plant/Warehouse 5620 has highest utilization.",
+            "time": "2026-07-30 10:36:14.499514"
+        },
+        {
+            "role": "user",
+            "content": "Why wasn't order 5485567248 selected?",
+            "time": "2026-07-30 10:36:14.526962"
+        },
+        {
+            "role": "assistant",
+            "content": "Order 5485567248 (qty 2, revenue 94) was NOT selected \u2014 including it would have pushed total assigned quantity over the batch's inventory capacity (8.0 units), so it was left out in favor of a combination with higher total revenue.",
+            "time": "2026-07-30 10:36:14.542845"
+        }
+    ]
+}

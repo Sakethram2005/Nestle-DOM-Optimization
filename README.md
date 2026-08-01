@@ -319,8 +319,8 @@ Hindu College of Engineering & Technology
 B.Tech – ECE  
 Hindu College of Engineering & Technology
 
-**Saketh Ram**
-B.Tech – DS/AI  
+**Thammandra Saketh Ram**
+B.Tech – DSAI  
 IIT Bhilai
 
 

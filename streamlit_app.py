@@ -6,16 +6,64 @@ import plotly.graph_objects as go
 
 from qora.knowledge import knowledge
 from qora.chat_manager import ChatManager
+from qora.analytics import DashboardAnalytics
+from qora.quantum_knowledge import QuantumKnowledge
+from qora.recommendation import RecommendationEngine
 
 import plotly.io as pio
 
 pio.templates.default = "plotly_dark"
 
 import re
+import time
 
-def get_response(question):
+import quantum_optimizer
+import benchmark as benchmark_module
+
+# Baseline + OR-Tools together run in ~1-2s on the full dataset, but
+# Streamlit re-executes every tab's code on every rerun regardless of
+# which tab is active, so this is still cached to avoid adding that
+# delay to unrelated interactions elsewhere on the page.
+@st.cache_data(show_spinner=False)
+def _run_full_scale_benchmark_cached(df):
+    return benchmark_module.run_full_scale_benchmark(df)
+
+# Loaded once at import time — cheap (reads a small JSON file), and
+# every rerun of the Streamlit script re-imports this module anyway.
+_quantum_knowledge = QuantumKnowledge()
+
+
+def get_response(question, df=None):
 
     text = question.lower()
+
+    # -------------------------------------------------------
+    # Quantum result questions first (objective value, feasibility,
+    # optimality gap, runtime, why only N selected, etc.) — these
+    # are specific to the cached QAOA/exact/greedy run and shouldn't
+    # fall through to the general dashboard analytics below.
+    # -------------------------------------------------------
+    quantum_answer = _quantum_knowledge.answer(text)
+
+    if quantum_answer is not None:
+        return str(quantum_answer)
+
+    # -------------------------------------------------------
+    # Live dashboard data (utilization, shipping cost, revenue,
+    # best/worst plant, top products, penalties, carbon, etc. —
+    # ~49 intents in DashboardAnalytics.answer()) — always tried
+    # before the static FAQ, so any question the live data can
+    # answer takes priority over a generic canned response.
+    # -------------------------------------------------------
+    if df is not None:
+
+        analytics = DashboardAnalytics(df)
+        data_answer = analytics.answer(text)
+
+        if data_answer is not None and data_answer not in (
+            "Sorry, I couldn't understand that analytics question.",
+        ):
+            return str(data_answer)
 
     # Split into separate questions
     questions = re.split(r'[?.!,;]', text)
@@ -220,11 +268,17 @@ if selected_date != "All":
 selected_orders = filtered_results["Selected"].sum()
 total_orders = len(filtered_results)
 
-if total_orders > 0:
-    fill_rate = round(
-        selected_orders / total_orders * 100,
-        2
-    )
+# Line-count accept rate (old metric) — kept for reference, not shown
+# as the headline "Fill Rate" since it doesn't reflect fulfilled volume.
+accept_rate = round(selected_orders / total_orders * 100, 2) if total_orders > 0 else 0
+
+# Fill Rate = fulfilled ordered quantity / total ordered quantity.
+total_qty = filtered_results["OrderedQty_converted"].sum()
+if total_qty > 0:
+    fulfilled_qty = filtered_results.loc[
+        filtered_results["Selected"] == 1, "OrderedQty_converted"
+    ].sum()
+    fill_rate = round(fulfilled_qty / total_qty * 100, 2)
 else:
     fill_rate = 0
 
@@ -309,6 +363,115 @@ with tab1:
 
     # ${revenue:,.2f}
     """) 
+
+    # --------------------------------------------------
+    # Additional KPI cards: shipping cost, penalty cost,
+    # warehouse utilization, delivery lead time.
+    # --------------------------------------------------
+    analytics_kpi = DashboardAnalytics(results)
+
+    avg_shipping = analytics_kpi.average_shipping_cost()
+    total_penalty_cost = analytics_kpi.total_penalty()
+    avg_utilization = analytics_kpi.average_utilization()
+    avg_delivery_days = analytics_kpi.average_delivery_days()
+
+    kcol1, kcol2, kcol3, kcol4 = st.columns(4)
+
+    with kcol1:
+        st.info(f"""
+    ### 🚚 Avg Shipping Cost
+
+    # {f"${avg_shipping:,.2f}" if avg_shipping is not None else "N/A"}
+    """)
+
+    with kcol2:
+        st.warning(f"""
+    ### 💸 Total Penalty Cost
+
+    # {f"${total_penalty_cost:,.2f}" if total_penalty_cost is not None else "N/A"}
+    """)
+
+    with kcol3:
+        st.success(f"""
+    ### 🏭 Current Warehouse Utilization
+
+    # {f"{avg_utilization:.2f}%" if avg_utilization is not None else "N/A"}
+    """)
+        st.caption("Based on the original assignment in the provided dataset.")
+
+    with kcol4:
+        st.error(f"""
+    ### ⏱️ Avg Delivery Lead Time
+
+    # {f"{avg_delivery_days:.2f} days" if avg_delivery_days is not None else "N/A"}
+    """)
+
+    st.caption(
+        "Delivery Lead Time is the real gap between planning date and "
+        "requested delivery date — this dataset has no distance/lat-long "
+        "data, so delivery *distance* can't be computed honestly and "
+        "isn't shown here."
+    )
+
+    # --------------------------------------------------
+    # Optimization Summary
+    # --------------------------------------------------
+    st.subheader("📋 Optimization Summary")
+
+    try:
+        summary_analytics = DashboardAnalytics(results)
+
+        orders_optimized = summary_analytics.orders_optimized_count()
+        orders_rejected = summary_analytics.orders_rejected_count()
+        violations = summary_analytics.constraint_violations()
+        capacity_util = summary_analytics.average_utilization()
+
+        scol1, scol2, scol3, scol4 = st.columns(4)
+
+        with scol1:
+            st.metric("✅ Orders Optimized", f"{orders_optimized:,}" if orders_optimized is not None else "N/A")
+
+        with scol2:
+            st.metric("❌ Orders Rejected", f"{orders_rejected:,}" if orders_rejected is not None else "N/A")
+
+        with scol3:
+            if violations is not None:
+                v_count = violations["count"]
+                st.metric(
+                    "⚠️ Constraint Violations",
+                    str(v_count),
+                    delta=f"{violations['total_overage_units']:.0f} units over" if v_count > 0 else "None",
+                    delta_color="inverse",
+                )
+            else:
+                st.metric("⚠️ Constraint Violations", "N/A")
+
+        with scol4:
+            st.metric("🏭 Capacity Utilization", f"{capacity_util:.2f}%" if capacity_util is not None else "N/A")
+
+        if violations is not None and violations["count"] > 0:
+            st.warning(
+                f"The current assignment (the 'Selected' column already in the data) "
+                f"violates its own inventory capacity constraint in {violations['count']} "
+                f"case(s) — {violations['total_overage_units']:.0f} units assigned beyond "
+                "available inventory. This means the existing baseline isn't fully feasible, "
+                "which is itself a useful finding, not just a data quirk."
+            )
+            with st.expander("Show violating (Plant, SKU) groups"):
+                st.dataframe(violations["details"], use_container_width=True)
+        elif violations is not None:
+            st.success("✅ The current assignment respects capacity constraints everywhere checked.")
+
+        st.caption(
+            "Orders Optimized/Rejected reflect the assignment already present in the "
+            "loaded data. Constraint Violations checks that same assignment against "
+            "the per-(Plant, SKU) inventory capacity used throughout this project "
+            "(quantum_optimizer.py, benchmark.py) — see the Quantum tab's Full-Scale "
+            "Benchmark for what an exact solve (OR-Tools) achieves on the same data."
+        )
+
+    except Exception as e:
+        st.warning(f"Optimization summary unavailable: {e}")
 
     left, right = st.columns(2)
 
@@ -524,17 +687,39 @@ with tab2:
     # --------------------------------------------------
     st.subheader("💡 Explainable Recommendations")
 
-    st.info("""
-    **Recommendation Engine**
+    try:
+        rec_analytics = DashboardAnalytics(results)
+        rec_engine = RecommendationEngine(rec_analytics)
 
-    • Prioritize high revenue orders.
+        # Pull the OR-Tools full-scale numbers if already computed
+        # elsewhere on the page (Quantum tab) — gives the fill-rate/
+        # utilization findings a genuine "what's actually achievable"
+        # comparison instead of a generic tip. Falls back gracefully
+        # if that benchmark hasn't been run yet in this session.
+        achievable_fill_rate = None
+        achievable_utilization = None
+        try:
+            full_bench_table = _run_full_scale_benchmark_cached(results)
+            achievable_fill_rate = full_bench_table.loc["OR-Tools", "Fill Rate (%)"]
+            achievable_utilization = full_bench_table.loc["OR-Tools", "Warehouse Utilization (%)"]
+        except Exception:
+            pass
 
-    • Balance order allocation across warehouses.
+        explained = rec_engine.explained_recommendations(
+            achievable_fill_rate=achievable_fill_rate,
+            achievable_utilization=achievable_utilization,
+        )
 
-    • Reduce overload on highly utilized plants.
+        if not explained:
+            st.info("Not enough data available yet to generate recommendations.")
+        else:
+            for item in explained:
+                with st.expander(f"📌 {item['title']}: {item['finding']}", expanded=False):
+                    st.markdown(f"**Why it matters:** {item['reasoning']}")
+                    st.markdown(f"**Recommended action:** {item['action']}")
 
-    • Improve overall fill rate while minimizing logistics cost.
-    """)
+    except Exception as e:
+        st.warning(f"Recommendations unavailable: {e}")
 
 
     # --------------------------------------------------
@@ -1445,89 +1630,328 @@ with tab5:
     "QAOA based optimization using Qiskit simulator"
     )
 
+    required_cols = {
+        "Plant", "MaterialNumber", "Group_Flag",
+        "OrderedQty_converted", "Order_SKU_Revenue", "Available_inventory",
+    }
+    missing_cols = required_cols - set(results.columns)
 
-    st.subheader("Quantum Result")
+    if missing_cols:
+        st.error(
+            "Quantum optimization needs these columns, which aren't in "
+            f"the loaded data: {', '.join(sorted(missing_cols))}. "
+            "Point this tab at the SKU-level order extract (the same "
+            "one used to compute Fill Rate) to enable it."
+        )
 
+    else:
+        # ------------------------------------------------------
+        # Load the precomputed result FIRST — this is what makes
+        # the tab instant for a real site visitor. QAOA takes
+        # ~10-30s, which nobody should wait through just to open
+        # a tab. The cache file is generated by running
+        # `python quantum_optimizer.py` and only needs regenerating
+        # when the underlying order data changes.
+        # ------------------------------------------------------
+        if "quantum_run" not in st.session_state:
+            cached = quantum_optimizer.load_result_cache()
+            st.session_state.quantum_run = cached  # None if no cache file yet
 
-    col1,col2,col3 = st.columns(3)
+        run = st.session_state.quantum_run
 
+        btn_col1, btn_col2 = st.columns(2)
 
-    col1.metric(
-        "Algorithm",
-        "QAOA"
-    )
+        recompute_clicked = btn_col1.button(
+            "🔄 Recompute Live (~10-30s)",
+            help="Re-runs exact/greedy/QAOA on the SAME instance as the "
+                 "cached result, to verify it's actually running live.",
+        )
 
+        random_clicked = btn_col2.button(
+            "🎲 Try a Different Real Order Batch (~10-30s)",
+            help="Picks a different real (Plant, SKU) order group from "
+                 "the current data and solves that one instead.",
+        )
 
-    col2.metric(
-        "Selected Orders",
-        "2"
-    )
+        def _normalize_live_run(live):
+            return {
+                "generated_at": "just now (live)",
+                "plant": live["plant"],
+                "material_number": live["material_number"],
+                "capacity": live["capacity"],
+                "orders": live["orders_df"][
+                    ["Group_Flag", "OrderedQty_converted",
+                     "Order_SKU_Revenue", "Available_inventory"]
+                ].to_dict(orient="records"),
+                "exact": live["exact"],
+                "greedy": live["greedy"],
+                "quantum": live["quantum"],
+            }
 
+        if recompute_clicked or random_clicked:
+            spinner_msg = (
+                "Re-running exact / greedy / QAOA on the same order batch..."
+                if recompute_clicked else
+                "Selecting a different real order batch and running "
+                "exact / greedy / QAOA solvers..."
+            )
+            with st.spinner(spinner_msg):
+                try:
+                    if random_clicked:
+                        seed = int(time.time() * 1000) % 1_000_000
+                        live = quantum_optimizer.run_full_comparison(results, random_state=seed)
+                    else:
+                        live = quantum_optimizer.run_full_comparison(results)
 
-    col3.metric(
-        "Objective Value",
-        "220"
-    )
+                    run = _normalize_live_run(live)
+                    st.session_state.quantum_run = run
 
+                    if recompute_clicked:
+                        # Best-effort refresh of the cache for the next
+                        # visitor. Skip silently on read-only filesystems.
+                        try:
+                            quantum_optimizer.save_result_cache(live)
+                        except OSError:
+                            pass
+                except ValueError as e:
+                    st.warning(f"Couldn't find a suitable order batch: {e}")
 
-    st.subheader("Optimal Assignment")
+        if run is None:
+            st.info(
+                "No cached quantum result yet. Run `python quantum_optimizer.py` "
+                "once to generate `data/quantum_result_cache.json`, or click "
+                "'Recompute Live' above (~10-30 seconds)."
+            )
 
+        else:
+            source_note = (
+                "cached result"
+                if run.get("generated_at", "").endswith("UTC")
+                else "just recomputed live"
+            )
 
-    quantum_result = pd.DataFrame({
+            # --------------------------------------------------
+            # Instance info panel — what subproblem is this?
+            # --------------------------------------------------
+            st.subheader("Instance Information")
 
-        "Order":[
-            "Order_1",
-            "Order_2",
-            "Order_3"
-        ],
+            i1, i2, i3, i4 = st.columns(4)
+            i1.metric("Plant", str(run["plant"]))
+            i2.metric("SKU", str(run["material_number"]))
+            i3.metric("Capacity", f"{run['capacity']:.0f}")
+            i4.metric("Orders", str(len(run["orders"])))
 
-        "Selected":[
-            1,
-            1,
-            0
-        ]
+            st.caption(f"Source: {source_note}, generated {run.get('generated_at', 'unknown time')}")
 
-    })
+            # --------------------------------------------------
+            # Quantum result
+            # --------------------------------------------------
+            st.subheader("Quantum Result")
 
+            col1, col2, col3 = st.columns(3)
 
-    st.dataframe(
-        quantum_result,
-        use_container_width=True
-    )
+            col1.metric("Algorithm", "QAOA")
 
+            n_selected = int(sum(run["quantum"]["assignment"].values()))
+            col2.metric("Optimized Orders", str(n_selected))
 
-    st.subheader(
-        "Classical vs Quantum"
-    )
+            col3.metric("Objective Value", f"{run['quantum']['objective']:.0f}")
 
+            # Feasibility status
+            if run["quantum"]["feasible"]:
+                st.success("Constraint satisfied ✔ — Feasible")
+            else:
+                st.error(
+                    "Constraint violated ✘ — QUBO penalty terms are soft, "
+                    "so infeasible QAOA results can happen and are surfaced "
+                    "here rather than hidden."
+                )
 
-    comparison = pd.DataFrame({
+            # Optimality gap
+            exact_obj = run["exact"]["objective"]
+            quantum_obj = run["quantum"]["objective"]
+            gap_pct = (exact_obj - quantum_obj) / exact_obj * 100 if exact_obj else 0.0
 
-        "Method":[
-            "Classical OR-Tools",
-            "QAOA"
-        ],
+            st.metric("Optimality Gap", f"{gap_pct:.1f}%")
 
-        "Objective":[
-            200,
-            220
-        ]
+            # --------------------------------------------------
+            # Runtime comparison — the actual classical/quantum
+            # trade-off: same answer, very different cost.
+            # --------------------------------------------------
+            st.subheader("Runtime Comparison")
 
-    })
+            runtime_df = pd.DataFrame({
+                "Method": ["Exact Classical", "Greedy Classical", "QAOA"],
+                "Runtime (s)": [
+                    run["exact"]["runtime_sec"],
+                    run["greedy"]["runtime_sec"],
+                    run["quantum"]["runtime_sec"],
+                ],
+            })
 
+            rt1, rt2, rt3 = st.columns(3)
+            rt1.metric("Exact Classical", f"{run['exact']['runtime_sec']:.4f}s")
+            rt2.metric("Greedy Classical", f"{run['greedy']['runtime_sec']:.4f}s")
+            rt3.metric("QAOA", f"{run['quantum']['runtime_sec']:.2f}s")
 
-    fig = px.bar(
-        comparison,
-        x="Method",
-        y="Objective",
-        color="Method"
-    )
+            st.caption(
+                "This is the real trade-off: classical solvers reach the same "
+                "objective in a fraction of a second on an instance this size, "
+                "while QAOA takes tens of seconds on a simulator — the value "
+                "quantum could add shows up at problem sizes where classical "
+                "solvers stop scaling, not here."
+            )
 
+            st.subheader("Optimized Assignment")
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
+            quantum_result = pd.DataFrame({
+                "Order": list(run["quantum"]["assignment"].keys()),
+                "Selected": list(run["quantum"]["assignment"].values()),
+            })
+
+            st.dataframe(
+                quantum_result,
+                use_container_width=True
+            )
+
+            st.subheader("Classical vs Quantum")
+
+            st.caption(
+                "Classical = exact brute-force optimum for this small instance "
+                "(same objective function and feasibility check as QAOA)."
+            )
+
+            comparison_qc = pd.DataFrame({
+                "Method": ["Exact Classical", "Greedy Classical", "QAOA"],
+                "Objective": [
+                    run["exact"]["objective"],
+                    run["greedy"]["objective"],
+                    run["quantum"]["objective"],
+                ],
+            })
+
+            fig = px.bar(
+                comparison_qc,
+                x="Method",
+                y="Objective",
+                color="Method"
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+            # --------------------------------------------------
+            # Quantum benchmark — Baseline vs OR-Tools vs QAOA, all
+            # three restricted to the SAME small batch QAOA actually
+            # solved. Built from the `run` dict already on screen
+            # (cached, live-recomputed, or random-batch) so this
+            # table never disagrees with the metrics shown above it.
+            # --------------------------------------------------
+            st.subheader("Quantum Benchmark")
+
+            try:
+                order_ids = {o["Group_Flag"] for o in run["orders"]}
+
+                qb_table = benchmark_module.compute_quantum_scope_benchmark(
+                    results,
+                    run["plant"],
+                    run["material_number"],
+                    order_ids,
+                    run["quantum"]["assignment"],
+                    run["quantum"]["runtime_sec"],
+                )
+
+                qb_display = qb_table[
+                    ["Revenue", "Runtime (s)", "Warehouse Utilization (%)", "Fill Rate (%)"]
+                ].rename(columns={
+                    "Runtime (s)": "Runtime",
+                    "Warehouse Utilization (%)": "Utilization",
+                    "Fill Rate (%)": "Fill Rate",
+                })
+
+                qb_display = qb_display.copy()
+                qb_display["Revenue"] = qb_display["Revenue"].map(lambda v: f"{v:,.2f}")
+                qb_display["Runtime"] = qb_display["Runtime"].map(lambda v: f"{v:.4f}s")
+                qb_display["Utilization"] = qb_display["Utilization"].map(lambda v: f"{v:.2f}%")
+                qb_display["Fill Rate"] = qb_display["Fill Rate"].map(lambda v: f"{v:.2f}%")
+
+                st.table(qb_display)
+
+                st.caption(
+                    f"All three methods solved the identical {len(order_ids)}-order "
+                    f"batch (Plant {run['plant']}, SKU {run['material_number']}) — "
+                    "same objective function and feasibility check."
+                )
+
+                # --- Revenue / Fill Rate comparison charts ---
+                qb_numeric = qb_table.reset_index().rename(columns={"index": "Method"})
+
+                rev_fig = px.bar(
+                    qb_numeric, x="Method", y="Revenue", color="Method",
+                    title="Revenue Comparison",
+                )
+                st.plotly_chart(rev_fig, use_container_width=True)
+
+                fill_fig = px.bar(
+                    qb_numeric, x="Method", y="Fill Rate (%)", color="Method",
+                    title="Fill Rate Comparison",
+                )
+                st.plotly_chart(fill_fig, use_container_width=True)
+
+            except Exception as e:
+                st.warning(f"Quantum benchmark unavailable: {e}")
+
+            # --------------------------------------------------
+            # Full-scale benchmark — Baseline vs OR-Tools across
+            # the ENTIRE dataset. Quantum is deliberately excluded
+            # here (see note below) rather than shown as "N/A" or
+            # zero, since either would misrepresent why it's absent.
+            # --------------------------------------------------
+            st.subheader("Full-Scale Benchmark")
+
+            try:
+                full_table = _run_full_scale_benchmark_cached(results)
+
+                optimized_utilization = full_table.loc["OR-Tools", "Warehouse Utilization (%)"]
+
+                st.success(f"""
+    ### 🏭 Optimized Warehouse Utilization
+
+    # {optimized_utilization:.2f}%
+    """)
+                st.caption("After solving the inventory assignment problem using OR-Tools.")
+
+                display_table = full_table[
+                    ["Revenue", "Shipping Cost", "Runtime (s)", "Fill Rate (%)"]
+                ].rename(columns={
+                    "Runtime (s)": "Runtime",
+                    "Fill Rate (%)": "Fill Rate",
+                })
+
+                display_table = display_table.copy()
+                display_table["Revenue"] = display_table["Revenue"].map(lambda v: f"{v:,.2f}")
+                display_table["Shipping Cost"] = display_table["Shipping Cost"].map(lambda v: f"{v:,.2f}")
+                display_table["Runtime"] = display_table["Runtime"].map(lambda v: f"{v:.2f}s")
+                display_table["Fill Rate"] = display_table["Fill Rate"].map(lambda v: f"{v:.2f}%")
+
+                st.table(display_table)
+
+                st.caption(
+                    f"Benchmarked on the full {len(results):,}-order dataset — "
+                    "same objective function and feasibility check as the "
+                    "small-batch comparison above."
+                )
+
+            except Exception as e:
+                st.warning(f"Full-scale benchmark unavailable: {e}")
+
+            st.info(
+                "Quantum is not included because current QAOA simulators "
+                "cannot solve the full 25,193-order problem within "
+                "practical time limits."
+            )
 
 
 
@@ -1927,7 +2351,7 @@ with tab6:
 
 
 
-        response = get_response(prompt)
+        response = get_response(prompt, filtered_results)
 
 
 

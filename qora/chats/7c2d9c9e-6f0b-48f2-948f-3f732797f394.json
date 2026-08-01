@@ -1,0 +1,17 @@
+{
+    "id": "7c2d9c9e-6f0b-48f2-948f-3f732797f394",
+    "title": "New Chat",
+    "created": "2026-07-29 17:50:35.302969",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Which plant has the highest utilization?",
+            "time": "2026-07-29 17:50:35.362775"
+        },
+        {
+            "role": "assistant",
+            "content": "\nWarehouse Utilization shows how efficiently each warehouse is being used.\n\nHigh utilization means the warehouse is handling many orders.\n\nVery high utilization may lead to congestion, while very low utilization indicates underused resources.\n\nA balanced utilization across warehouses improves efficiency and reduces operational risk.\n\n\n\nA Distribution Center (DC) stores inventory and fulfills customer orders.\n\nThe optimizer selects the most suitable DC based on inventory, cost and operational constraints.\n",
+            "time": "2026-07-29 17:50:35.399345"
+        }
+    ]
+}

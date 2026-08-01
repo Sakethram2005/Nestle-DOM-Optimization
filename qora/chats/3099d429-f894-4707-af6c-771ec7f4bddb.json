@@ -1,0 +1,17 @@
+{
+    "id": "3099d429-f894-4707-af6c-771ec7f4bddb",
+    "title": "New Chat",
+    "created": "2026-07-31 17:12:42.690380",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Why was Order 5484913123 assigned?",
+            "time": "2026-07-31 17:12:42.739765"
+        },
+        {
+            "role": "assistant",
+            "content": "Order 5484913123 has 30 SKU lines (Plant 5083): 14 accepted, 16 rejected. Total revenue from accepted lines: 102,261.00. Most common rejection reason: Rejected due to inventory/capacity/dock/throughput or low profit.\n\nAsk about a specific SKU for the full breakdown, e.g. \"why was order 5484913123 sku 12260382 assigned?\" (SKUs on this order include: 12260382, 9516458, 12408924, 9517630, 12587091, ...).",
+            "time": "2026-07-31 17:12:42.763192"
+        }
+    ]
+}

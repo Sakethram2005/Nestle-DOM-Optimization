@@ -452,6 +452,176 @@ class RecommendationEngine:
             "opportunities": self.optimization_opportunities()
         }
 
+    # =====================================================
+    # EXPLAINED RECOMMENDATIONS
+    #
+    # Each entry pairs a real finding (an actual number from the
+    # current data) with the business reasoning behind it — why it
+    # matters and what it costs — and a concrete recommended action.
+    # This replaces generic "improve X" phrasing with "X is currently
+    # Y, which means Z, so do W."
+    # =====================================================
+
+    def explained_recommendations(self, achievable_fill_rate=None, achievable_utilization=None):
+        """
+        `achievable_fill_rate` / `achievable_utilization`: optionally
+        pass the OR-Tools full-scale benchmark's numbers (from
+        benchmark.py) so the fill-rate/utilization findings can state
+        what's actually achievable with the same data, not just the
+        current state — this is the single most useful insight this
+        project has, and it's wasted if displayed as a generic tip.
+        """
+        items = []
+
+        # --- Fill Rate ---
+        fill = self.analytics.average_fill_rate()
+        if fill is not None:
+            if achievable_fill_rate is not None and achievable_fill_rate - fill > 5:
+                reasoning = (
+                    f"Current fill rate is only {fill:.2f}%, meaning most ordered "
+                    f"demand goes unfulfilled today. Solving the same dataset's "
+                    f"inventory-capacity problem exactly (via OR-Tools) reaches "
+                    f"{achievable_fill_rate:.2f}% — a gap of "
+                    f"{achievable_fill_rate - fill:.1f} points. This shows the "
+                    "shortfall is largely an assignment-logic gap, not a real "
+                    "inventory shortage: the capacity to fulfill far more orders "
+                    "already exists in the data."
+                )
+                action = (
+                    "Adopt exact/optimized assignment logic (see the Full-Scale "
+                    "Benchmark) in place of the current default-assignment "
+                    "process to close most of this gap without new inventory."
+                )
+            else:
+                reasoning = (
+                    f"Current fill rate is {fill:.2f}%. Every unfulfilled order "
+                    "represents lost revenue and, if it recurs for the same "
+                    "customer, a service-level risk."
+                )
+                action = "Review inventory allocation for the SKUs driving the shortfall."
+
+            items.append({
+                "title": "Fill Rate",
+                "finding": f"{fill:.2f}%",
+                "reasoning": reasoning,
+                "action": action,
+            })
+
+        # --- Shipping cost ---
+        highest_ship_wh = self.analytics.highest_shipping_cost()
+        avg_ship = self.analytics.average_shipping_cost()
+        if highest_ship_wh is not None and avg_ship is not None:
+            items.append({
+                "title": "Shipping Cost",
+                "finding": f"Plant/Warehouse {highest_ship_wh} has the highest average shipping cost",
+                "reasoning": (
+                    f"Average shipping cost across all warehouses is "
+                    f"{avg_ship:,.2f}. Plant {highest_ship_wh} sits above that "
+                    "average — every order routed through it costs more to "
+                    "fulfill than the network average, directly reducing margin "
+                    "on those orders."
+                ),
+                "action": (
+                    f"Review carrier contracts and routing for Plant {highest_ship_wh}, "
+                    "or reassign eligible orders to a lower-cost warehouse when "
+                    "inventory allows."
+                ),
+            })
+
+        # --- Warehouse utilization ---
+        highest_util_wh = self.analytics.highest_utilization()
+        lowest_util_wh = self.analytics.lowest_utilization()
+        current_util = self.analytics.average_utilization()
+        if highest_util_wh is not None and lowest_util_wh is not None:
+            if achievable_utilization is not None and current_util is not None:
+                reasoning = (
+                    f"Current utilization (based on today's existing "
+                    f"assignment) averages {current_util:.2f}%, with Plant "
+                    f"{highest_util_wh} the most utilized and Plant "
+                    f"{lowest_util_wh} the least — but solving the assignment "
+                    f"problem optimally (OR-Tools) implies utilization closer to "
+                    f"{achievable_utilization:.2f}%. The imbalance today is a "
+                    "symptom of the same assignment-logic gap as the fill rate "
+                    "finding above, not fixed physical constraints."
+                )
+            else:
+                reasoning = (
+                    f"Plant {highest_util_wh} is the most utilized warehouse and "
+                    f"Plant {lowest_util_wh} the least. A large gap between the "
+                    "two means some warehouses risk congestion and delay while "
+                    "others sit underused — both reduce overall network "
+                    "efficiency."
+                )
+            items.append({
+                "title": "Warehouse Utilization",
+                "finding": f"Highest: Plant {highest_util_wh} — Lowest: Plant {lowest_util_wh}",
+                "reasoning": reasoning,
+                "action": (
+                    f"Shift eligible order volume from Plant {highest_util_wh} "
+                    f"toward Plant {lowest_util_wh} where inventory and shipping "
+                    "cost allow, to reduce congestion risk and use idle capacity."
+                ),
+            })
+
+        # --- Penalty cost ---
+        penalty = self.analytics.total_penalty()
+        revenue = self.analytics.total_revenue()
+        if penalty is not None and revenue:
+            penalty_pct_of_revenue = penalty / revenue * 100
+            items.append({
+                "title": "Penalty Cost",
+                "finding": f"{penalty:,.2f}",
+                "reasoning": (
+                    f"Estimated penalty exposure from unfulfilled orders is "
+                    f"{penalty:,.2f} — equivalent to {penalty_pct_of_revenue:.2f}% "
+                    "of current accepted revenue. This is a direct cost of the "
+                    "fill-rate gap above: fewer unfulfilled orders means less "
+                    "penalty exposure, not just more revenue."
+                ),
+                "action": (
+                    "Prioritize fulfilling the highest-penalty-rate orders first "
+                    "when capacity is constrained, rather than treating all "
+                    "unfulfilled demand as equal."
+                ),
+            })
+
+        # --- Best-performing plant (revenue) ---
+        best_plant = self.analytics.best_plant()
+        worst_plant = self.analytics.worst_plant()
+        if best_plant is not None and worst_plant is not None:
+            items.append({
+                "title": "Plant Performance",
+                "finding": f"Best: Plant {best_plant} — Weakest: Plant {worst_plant}",
+                "reasoning": (
+                    f"Plant {best_plant} generates the most revenue in the "
+                    f"network; Plant {worst_plant} the least. Understanding "
+                    f"*why* {best_plant} performs well (product mix, inventory "
+                    "depth, location) is more actionable than treating this as "
+                    "a ranking — the goal is to replicate what's working, not "
+                    "just identify a leaderboard."
+                ),
+                "action": (
+                    f"Compare Plant {best_plant}'s product mix and inventory "
+                    f"policy against Plant {worst_plant}'s to identify a "
+                    "specific, transferable practice."
+                ),
+            })
+
+        return items
+
+    def explained_recommendations_text(self, achievable_fill_rate=None, achievable_utilization=None):
+        """Plain-text rendering of explained_recommendations(), for
+        contexts (chat, plain reports) that want a single string."""
+        items = self.explained_recommendations(achievable_fill_rate, achievable_utilization)
+        blocks = []
+        for item in items:
+            blocks.append(
+                f"{item['title']}: {item['finding']}\n"
+                f"Why it matters: {item['reasoning']}\n"
+                f"Recommended action: {item['action']}"
+            )
+        return "\n\n".join(blocks)
+
 # =====================================================
 # END OF FILE
 # =====================================================

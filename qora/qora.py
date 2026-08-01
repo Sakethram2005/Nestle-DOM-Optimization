@@ -11,13 +11,13 @@ single intelligent assistant.
 =========================================================
 """
 
-from qora.knowledge import knowledge
-from knowledge import KNOWLEDGE_BASE
+from qora.knowledge import knowledge as KNOWLEDGE_BASE
 from qora.analytics import DashboardAnalytics
 from qora.recommendation import RecommendationEngine
 from qora.reports import ReportGenerator
 from qora.memory import ConversationMemory
 from qora.realtime import RealtimeEngine
+from qora.quantum_knowledge import QuantumKnowledge
 
 class QoraAI:
 
@@ -35,6 +35,11 @@ class QoraAI:
             self.recommendations = None
             self.reports = None
             self.realtime = RealtimeEngine()
+
+        # Quantum results are cached separately from the main
+        # dataframe (see quantum_optimizer.py) — this works even
+        # if no dataframe was passed in at all.
+        self.quantum = QuantumKnowledge()
 
         self.username = username
 
@@ -121,6 +126,39 @@ class QoraAI:
         self.remember_user(question)
 
         q = question.lower()
+
+        # -------------------------------
+        # Quantum optimization results (objective value, feasibility,
+        # optimality gap, runtime, why only N orders selected, etc.)
+        # Checked FIRST — these are specific questions about the
+        # cached QAOA/exact/greedy run, not the general dashboard data.
+        # -------------------------------
+
+        quantum_answer = self.quantum.answer(q)
+
+        if quantum_answer is not None:
+            self.remember_ai(str(quantum_answer))
+            self.memory.save_user_memory(self.username)
+            return quantum_answer
+
+        # -------------------------------
+        # Live dashboard data (utilization, shipping cost, revenue,
+        # best/worst plant, top products, penalties, carbon, etc. —
+        # ~49 intents in DashboardAnalytics.answer()) — always tried
+        # before the static FAQ, so any question the live data can
+        # answer takes priority over a generic canned response.
+        # -------------------------------
+
+        if self.analytics is not None:
+
+            data_answer = self.analytics.answer(q)
+
+            if data_answer is not None and data_answer not in (
+                "Sorry, I couldn't understand that analytics question.",
+            ):
+                self.remember_ai(str(data_answer))
+                self.memory.save_user_memory(self.username)
+                return data_answer
 
         # -------------------------------
         # Knowledge Base
