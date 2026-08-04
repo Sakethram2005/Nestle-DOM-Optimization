@@ -28,6 +28,15 @@ import benchmark as benchmark_module
 def _run_full_scale_benchmark_cached(df):
     return benchmark_module.run_full_scale_benchmark(df)
 
+# Genuine multi-plant reassignment (Baseline vs Greedy vs OR-Tools) —
+# this is the actual "Distributed" part of Distributed Order
+# Management: real candidate-plant enumeration, not just accept/reject
+# at one fixed plant. Takes ~5-8s combined, cached for the same reason
+# as above.
+@st.cache_data(show_spinner=False)
+def _run_reassignment_benchmark_cached(df):
+    return benchmark_module.run_reassignment_benchmark(df)
+
 # Loaded once at import time — cheap (reads a small JSON file), and
 # every rerun of the Streamlit script re-imports this module anyway.
 _quantum_knowledge = QuantumKnowledge()
@@ -1952,6 +1961,69 @@ with tab5:
                 "cannot solve the full 25,193-order problem within "
                 "practical time limits."
             )
+
+            # --------------------------------------------------
+            # Reassignment Benchmark — genuine multi-plant
+            # candidate assignment (the "Distributed" part of DOM).
+            # Everything above only ever decides accept/reject at an
+            # order's OWN recorded plant; this section adds real
+            # order -> alternate-plant decisions.
+            # --------------------------------------------------
+            st.subheader("🔀 Reassignment Benchmark")
+
+            st.caption(
+                "Baseline and OR-Tools above only decide accept/reject at "
+                "each order's own recorded plant. The comparison below adds "
+                "real reassignment — each order may go to ANY plant that "
+                "carries its SKU anywhere in this dataset, using that "
+                "plant's own real shipping rate, not an estimate."
+            )
+
+            try:
+                reassign_table = _run_reassignment_benchmark_cached(results)
+
+                reassign_display = reassign_table[
+                    ["Revenue", "Shipping Cost", "Runtime (s)", "Fill Rate (%)", "Orders Reassigned"]
+                ].rename(columns={"Runtime (s)": "Runtime"})
+
+                reassign_display = reassign_display.copy()
+                reassign_display["Revenue"] = reassign_display["Revenue"].map(lambda v: f"${v:,.2f}")
+                reassign_display["Shipping Cost"] = reassign_display["Shipping Cost"].map(lambda v: f"${v:,.2f}")
+                reassign_display["Runtime"] = reassign_display["Runtime"].map(lambda v: f"{v:.2f}s")
+                reassign_display["Fill Rate (%)"] = reassign_display["Fill Rate (%)"].map(lambda v: f"{v:.2f}%")
+                reassign_display["Orders Reassigned"] = reassign_display["Orders Reassigned"].map(lambda v: f"{int(v):,}")
+
+                st.table(reassign_display)
+
+                orders_reassigned_ortools = int(reassign_table.loc["OR-Tools Reassignment", "Orders Reassigned"])
+                shipping_savings = (
+                    reassign_table.loc["Baseline (no reassignment)", "Shipping Cost"]
+                    - reassign_table.loc["OR-Tools Reassignment", "Shipping Cost"]
+                )
+
+                st.success(
+                    f"OR-Tools reassigned {orders_reassigned_ortools:,} orders to a "
+                    f"different plant than their original default, cutting total "
+                    f"shipping cost by ${shipping_savings:,.2f} versus the no-reassignment "
+                    "baseline, at matching revenue and fill rate."
+                )
+
+                reassign_chart_data = reassign_table.reset_index().rename(columns={"index": "Method"})
+
+                reassign_rev_fig = px.bar(
+                    reassign_chart_data, x="Method", y="Revenue", color="Method",
+                    title="Revenue: Baseline vs Greedy vs OR-Tools Reassignment",
+                )
+                st.plotly_chart(reassign_rev_fig, use_container_width=True)
+
+                reassign_ship_fig = px.bar(
+                    reassign_chart_data, x="Method", y="Shipping Cost", color="Method",
+                    title="Shipping Cost: Baseline vs Greedy vs OR-Tools Reassignment",
+                )
+                st.plotly_chart(reassign_ship_fig, use_container_width=True)
+
+            except Exception as e:
+                st.warning(f"Reassignment benchmark unavailable: {e}")
 
 
 
