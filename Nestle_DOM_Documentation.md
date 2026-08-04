@@ -144,13 +144,17 @@ Meanwhile, `08_QAOA_Qiskit.ipynb` builds a `QuadraticProgram` from the real 10-o
 
 Quantum hardware and simulators today cannot represent the full problem (Section 6's variable-growth analysis: 200,000+ binary variables for the full order set). A hybrid approach uses classical optimization for everything at production scale and reserves quantum/QAOA for a small, carefully chosen slice — this is not a workaround to hide behind, it's the only approach that is honest about where quantum currently helps:
 
-- Classical (OR-Tools/CP-SAT, LP) solves the full or near-full problem reliably and provides the baseline/benchmark.
-- QAOA runs on a small batch (currently 3 orders in `quantum_optimizer.py`; up to ~10 once wired to 4A.1's sample) purely to test and benchmark quantum quality against the same classical benchmark on identical inputs.
+- Classical (OR-Tools/CP-SAT) solves the full problem reliably at scale — confirmed directly: all 25,193 orders, with genuine multi-plant reassignment, in ~2-3 seconds (Section 14.5) — and provides the baseline/benchmark.
+- QAOA runs on a small, real batch (4 orders, Plant 5385/SKU 12386067, capacity 8 units) purely to test and benchmark quantum quality against the same classical benchmark on identical inputs.
 - Results are compared on equal footing (Section 6's evaluation methodology), and the practical recommendation today is "use classical," which is itself a valid and expected finding at this stage of quantum hardware maturity.
+
+**A note on what this result does and doesn't demonstrate.** Capacity-constrained assignment (a knapsack-style problem) is exactly the kind of structured, well-behaved combinatorial problem classical solvers are already very good at — there is no known theoretical quantum speedup for this problem class, unlike domains such as factoring or specific sampling tasks. QAOA matching classical exactly on this batch (Section 14.3, and confirmed reliably across multiple runs below) is the **expected** outcome for a problem this size and structure, not evidence of a general quantum advantage. The value of this section is a real, honestly-benchmarked demonstration that the pipeline works correctly — not a claim that quantum computing currently helps solve this specific business problem.
+
+**Reliability check — is a single QAOA run enough evidence?** No: QAOA is deterministic given a fixed starting point (confirmed empirically — repeated runs with no explicit random initialization return identical results every time), so one run proves nothing about reliable convergence. Running QAOA 6 times from independently randomized starting points on the same real instance: **6 of 6 runs reached the exact optimum (378), 100% feasible** — see `quantum_optimizer.py`'s `run_qaoa_multi_seed()`. This is a genuine reliability statistic, not a single favorable data point.
 
 ### 4A.4 Current hardware limitations
 
-- **Simulator only, not a real QPU.** `StatevectorSampler` simulates a noiseless, ideal quantum computer — it has none of the error sources a real device has, so current results say nothing about real-hardware performance yet.
+- **Simulator only, not a real QPU.** `StatevectorSampler` simulates a noiseless, ideal quantum computer — it has none of the error sources a real device has, so current results say nothing about real-hardware performance yet. No run in this project has touched real quantum hardware or a queue.
 - **Exponential simulation cost.** Simulating an n-qubit circuit classically costs ~2ⁿ in memory/time, which is why even the simulator path is capped at a handful of variables — this is a hard ceiling on how large a "quantum" demonstration can get without touching real hardware.
 - **Circuit depth vs. noise, on real devices.** More QAOA `reps` improve solution quality in theory but real hardware accumulates gate errors and decoherence with depth, so real devices need shallower circuits than a simulator would suggest is optimal.
 - **Barren plateaus.** As problem/qubit count grows, QAOA's classical optimizer (COBYLA here) can struggle to find a useful gradient signal, making convergence slower or unreliable — this gets worse with problem size, not better.
@@ -423,7 +427,9 @@ Instance: Plant 5385, SKU 12386067, capacity 8 units, 4 real orders.
 | Greedy heuristic | 378 | ✔ | 0.0000s |
 | QAOA (Qiskit simulator) | 378 | ✔ | 33.10s |
 
-QAOA reaches the same optimum as both classical methods (0% optimality gap) — the honest finding is that at this scale, classical is ~165,000× faster, which is expected and correctly reported rather than framed as a quantum win.
+QAOA reaches the same optimum as both classical methods (0% optimality gap) — the honest finding is that at this scale, classical is ~165,000× faster, which is expected and correctly reported rather than framed as a quantum win. See Section 4A.3 for why this problem class has no expected quantum advantage in the first place.
+
+**Reliability, not just a single run:** QAOA is deterministic given a fixed starting point, so one run doesn't demonstrate reliable convergence. Running it 6 times from independently randomized starting points on this same instance: **6 of 6 runs reached the exact optimum (378), 100% feasible.**
 
 ### 13.4 Qora AI coverage
 

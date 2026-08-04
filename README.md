@@ -286,12 +286,18 @@ The solution provides measurable business value:
 # Installation
 
 ```bash
-git clone https://github.com/bushrafaizi1162529-pixel/distributed-order-management-Ai-platform.git
-
-cd distributed-order-management-Ai-platform
+git clone https://github.com/Sakethram2005/Nestle-DOM-Optimization
 
 pip install -r requirements.txt
 
+# Generates/refreshes data/quantum_result_cache.json (takes a few minutes —
+# includes a 10-run QAOA reliability check)
+python quantum_optimizer.py
+
+# Prints the full-scale and reassignment benchmark tables
+python benchmark.py
+
+# Launches the dashboard
 streamlit run streamlit_app.py
 ```
 

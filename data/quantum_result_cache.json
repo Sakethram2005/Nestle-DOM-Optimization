@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-03 07:45:01 UTC",
+  "generated_at": "2026-08-04 06:22:33 UTC",
   "plant": 5385,
   "material_number": 12386067,
   "capacity": 8.0,
@@ -39,7 +39,7 @@
       "order_5485529066": 1
     },
     "feasible": true,
-    "runtime_sec": 0.00035762786865234375
+    "runtime_sec": 0.0004181861877441406
   },
   "greedy": {
     "method": "Greedy classical heuristic",
@@ -51,7 +51,7 @@
       "order_5485529066": 1
     },
     "feasible": true,
-    "runtime_sec": 7.152557373046875e-06
+    "runtime_sec": 1.2636184692382812e-05
   },
   "quantum": {
     "method": "QAOA (Qiskit simulator, reps=1)",
@@ -63,7 +63,7 @@
       "order_5485529066": 0
     },
     "feasible": true,
-    "runtime_sec": 39.64156675338745
+    "runtime_sec": 63.64742040634155
   },
   "multi_seed": {
     "n_seeds": 10,
@@ -85,6 +85,6 @@
     "n_feasible": 10,
     "n_optimal": 9,
     "success_rate": 0.9,
-    "mean_runtime_sec": 736.0965014219285
+    "mean_runtime_sec": 49.43772659301758
   }
 }
