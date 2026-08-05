@@ -1,4 +1,8 @@
 # 📦 Quantum Optimization for Distributed Order Management (DOM)
+![Python](https://img.shields.io/badge/Python-3.13-blue)
+![Streamlit](https://img.shields.io/badge/Streamlit-App-red)
+![Qiskit](https://img.shields.io/badge/Qiskit-Quantum-purple)
+![OR--Tools](https://img.shields.io/badge/OR--Tools-Optimization-green)
 
 ## Executive Summary
 
