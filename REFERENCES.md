@@ -1,20 +1,22 @@
-1.Nestlé WISER Summer Program 2026 – Optimization Challenge Dataset
-Dataset provided by Nestlé and WISER for the competition.
+# References
 
-2.Google OR-Tools Documentation
-https://developers.google.com/optimization
+1. **Nestlé WISER Summer Program 2026 – Optimization Challenge Dataset**  
+   Dataset provided by Nestlé and WISER for the competition.
 
-3.Qiskit Documentation
-https://qiskit.org/documentation/
+2. **Google OR-Tools Documentation**  
+   https://developers.google.com/optimization
 
-4.Streamlit Documentation
-https://docs.streamlit.io/
+3. **Qiskit Documentation**  
+   https://qiskit.org/documentation/
 
-5.Pandas Documentation
-https://pandas.pydata.org/docs/
+4. **Streamlit Documentation**  
+   https://docs.streamlit.io/
 
-6.Plotly Python Documentation
-https://plotly.com/python/
+5. **Pandas Documentation**  
+   https://pandas.pydata.org/docs/
 
-7.Python Documentation
-https://docs.python.org/3/
+6. **Plotly Python Documentation**  
+   https://plotly.com/python/
+
+7. **Python Documentation**  
+   https://docs.python.org/3/
