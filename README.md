@@ -212,13 +212,6 @@ This enables scalability for increasingly complex optimization problems.
 ---
 
 # Dashboard Features
-# Dashboard Preview
-
-![Dashboard](docs/images/dashboard.png)
-
-![Analytics](docs/images/analytics.png)
-
-![Quantum Benchmark](docs/images/quantum.png)
 
 The Streamlit dashboard provides:
 
