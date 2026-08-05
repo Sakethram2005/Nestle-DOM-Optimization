@@ -315,6 +315,43 @@ streamlit run streamlit_app.py
 
 ---
 
+# Team Contributions
+
+### 👤 Pavan Kumar
+**Dashboard Development & Data Visualization**
+
+- Designed and developed the Streamlit dashboard
+- Built KPI cards and interactive Plotly visualizations
+- Developed analytics pages and dashboard layout
+- Integrated optimization results into the dashboard
+- Developed and integrated Qora AI interface
+- Worked on dashboard UI/UX improvements
+
+---
+
+### 👤 Bushra Faizi Shaik
+**Classical Optimization & Data Processing**
+
+- Performed data preprocessing and validation
+- Implemented baseline and greedy optimization methods
+- Developed Google OR-Tools optimization pipeline
+- Implemented multi-plant reassignment logic
+- Built benchmarking framework for optimization comparison
+- Integrated optimization outputs with the dashboard
+
+---
+
+### 👤 Thammandra Saketh Ram
+**Quantum Optimization, Documentation & Validation**
+
+- Researched Quantum Computing, QUBO formulation, and QAOA
+- Implemented QAOA-based optimization using Qiskit
+- Developed quantum benchmarking and reliability analysis
+- Compared Classical and Quantum optimization approaches
+- Enhanced Qora AI with analytics, quantum, and explainability features
+- Prepared the Planner View, README, Technical Report, and Presentation
+- Performed testing, validation, and overall project integration
+
 # Authors
 
 **Bushra Faizi Shaik**
