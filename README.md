@@ -321,8 +321,8 @@ streamlit run streamlit_app.py
 B.Tech – Artificial Intelligence & Machine Learning  
 Hindu College of Engineering & Technology
 
-**Pavan Kumar**
-B.Tech – ECE  
+**Pavan Kumar Pasupuleti**
+B.Tech – Electronics and Communication Engineering  
 Hindu College of Engineering & Technology
 
 **Thammandra Saketh Ram**
