@@ -361,10 +361,12 @@ streamlit run streamlit_app.py
 **Bushra Faizi Shaik**
 B.Tech – Artificial Intelligence & Machine Learning  
 Hindu College of Engineering & Technology
+bushrafaizi1162529@gmail.com
 
 **Pavan Kumar Pasupuleti**
 B.Tech – Electronics and Communication Engineering  
 Hindu College of Engineering & Technology
+pavan295826@gmail.com
 
 **Thammandra Saketh Ram**
 B.Tech – DSAI  
