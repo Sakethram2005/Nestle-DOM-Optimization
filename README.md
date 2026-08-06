@@ -321,7 +321,7 @@ streamlit run streamlit_app.py
 
 # Team Contributions
 
-### 👤 Pavan Kumar
+### 👤 Pavan Kumar Pasupuleti 
 **Dashboard Development & Data Visualization**
 
 - Designed and developed the Streamlit dashboard
