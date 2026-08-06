@@ -4,6 +4,12 @@
 ![Qiskit](https://img.shields.io/badge/Qiskit-Quantum-purple)
 ![OR--Tools](https://img.shields.io/badge/OR--Tools-Optimization-green)
 
+
+## 📹 Project Demo
+
+🎥 **Demo Video:**  
+[Watch the Project Demonstration](https://drive.google.com/file/d/1scZIGah9SIjEcsDiavt25E4Kqs3oAZ2i/view?usp=sharing)
+
 ## Executive Summary
 
 This project presents a **Hybrid Classical + Quantum-inspired Distributed Order Management (DOM)** platform developed for the **WISER–Nestlé Optimization Challenge**.
